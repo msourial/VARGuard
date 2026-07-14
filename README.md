@@ -1,5 +1,16 @@
 # VARGuard
 
+## Optional TxLINE Devnet data activation
+
+The replay is fully deterministic and does not require a wallet, API key, or network connection. For an optional read-only live fixture feed, use **Activate TxLINE Free Data** beneath the TxLINE panel:
+
+1. Connect Phantom or Solflare on **Solana Devnet**.
+2. Keep at least `0.002` Devnet SOL for the free-tier transaction fee and token-account rent.
+3. Approve the free TxLINE service-level-1 subscription and its activation-message signature.
+4. Select **Connect TxLINE** in the fixture panel.
+
+The resulting TxLINE API credential is stored in an HttpOnly browser session cookie and is never returned to client JavaScript. This feature supports no payments, trading, custody, transfers, or mainnet usage.
+
 Autonomous risk protection for simulated live football prediction markets.
 
 ## Demo

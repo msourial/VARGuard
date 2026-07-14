@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { advanceReplayTick, createDemoState, FINAL_REPLAY_TICK, replayIntervalMs } from "@/lib/varguard/engine";
 import type { AuditReceipt, DemoState, MarketState } from "@/lib/varguard/types";
 import { LiveTxLine } from "./components/LiveTxLine";
+import { TxLineActivation } from "./components/TxLineActivation";
 
 function money(value: number) { return `${value.toFixed(2)} test units`; }
 function statusLabel(value: string) { return value.replaceAll("_", " "); }
@@ -51,6 +52,7 @@ export default function Home() {
       <div className="log-card"><div className="section-title"><div><p className="eyebrow">DETERMINISTIC POLICY</p><h2>VARGuard decisions</h2></div><span>{state.actions.length} actions</span></div>{state.actions.length === 0 ? <p className="empty">Policy actions will appear here with verifiable receipts.</p> : <ol>{state.actions.map(action => <li key={action.id}><time>{Math.round(action.atMs / 1000)}s</time><b>{statusLabel(action.type)}</b><span>{action.reason}</span></li>)}</ol>}</div></section>
     <section className="receipts"><div className="section-title"><div><p className="eyebrow">AUDIT TRAIL</p><h2>Decision receipts</h2></div><span>{state.receipts.length} verified</span></div><div className="receipt-list">{state.receipts.length === 0 ? <p className="empty">Every major market action will create a receipt here.</p> : state.receipts.map(receipt => <button key={receipt.id} onClick={() => setSelectedReceipt(receipt)}><span className="verified">✓ VERIFIED</span><b>{receipt.id}</b><span>{statusLabel(receipt.action)}</span><span>{receipt.matchClock}</span><i>View →</i></button>)}</div></section>
     <LiveTxLine />
+    <TxLineActivation />
     <footer className="app-footer">VARGuard uses deterministic policies and simulated test units. It does not execute trades, custody funds, or accept deposits.</footer>
     {selectedReceipt && <ReceiptDrawer receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
   </main>;
