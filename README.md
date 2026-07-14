@@ -26,6 +26,6 @@ Open http://localhost:3000 and select **Start replay**. Use the speed control to
 
 ## TxLINE live data
 
-The dashboard now proxies real authenticated TxLINE score and StablePrice odds data through server-side routes, keeping credentials out of the browser. Activate the TxLINE World Cup free tier, then set `TXLINE_JWT` and `TXLINE_API_TOKEN` in `.env.local` with their matching `TXLINE_API_ORIGIN`. Select **Connect TxLINE** and enter a covered fixture ID from the TxLINE schedule.
+The dashboard now proxies real authenticated TxLINE score and StablePrice odds data through server-side routes, keeping credentials out of the browser. Activate the TxLINE World Cup free tier, then set `TXLINE_API_TOKEN` in `.env.local` with its matching `TXLINE_API_ORIGIN`. VARGuard requests and renews the short-lived guest JWT automatically; `TXLINE_JWT` is optional. Select **Connect TxLINE** and enter a covered fixture ID from the TxLINE schedule.
 
 When credentials are missing, expired, or the data stream is unavailable, the app makes the fallback explicit and keeps the deterministic replay fully available. AI explanations and database persistence remain deferred.
