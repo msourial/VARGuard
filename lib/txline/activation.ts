@@ -6,5 +6,17 @@ export type TxLineActivationState = "disconnected" | "connected" | "insufficient
 export interface ActivationSession { jwt: string; network: "devnet"; }
 export interface ActivationRequest { txSig: string; walletSignature: string; }
 export function activationMessage(txSig: string, jwt: string) { return `${txSig}::${jwt}`; }
+/** TxLINE may return either JSON or a bare activated token. */
+export function activationTokenFromResponse(body: string) {
+  const value = body.trim();
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as { token?: unknown; apiToken?: unknown };
+    const token = parsed.token ?? parsed.apiToken;
+    return typeof token === "string" && token.trim() ? token.trim() : null;
+  } catch {
+    return value;
+  }
+}
 export function shortenPublicKey(key: string) { return `${key.slice(0, 4)}…${key.slice(-4)}`; }
 export function activationError(error: unknown) { const message = error instanceof Error ? error.message : ""; const normalized = message.toLowerCase(); if (normalized.includes("rejected") || normalized.includes("declined") || normalized.includes("cancelled")) return "Wallet approval was cancelled. You can activate the free data feed again."; if (normalized.includes("insufficient")) return "Your wallet needs Devnet SOL for the free-tier transaction fee and account rent."; if (normalized.includes("rpc") || normalized.includes("fetch")) return "Could not reach Solana Devnet. Check the network and try again."; return message || "TxLINE activation could not be completed. Please try again."; }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DEVNET_TXLINE_ORIGIN } from "@/lib/txline/activation";
+import { activationTokenFromResponse, DEVNET_TXLINE_ORIGIN } from "@/lib/txline/activation";
 import { activationSessionJwt, clearTxLineSession, storeApiToken } from "@/lib/txline/session";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +19,18 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ txSig: body.txSig, walletSignature: body.walletSignature, leagues: [] }),
       cache: "no-store",
     });
-    const payload = (await response.json()) as { token?: string; apiToken?: string; error?: string; message?: string };
-    const token = payload.token ?? payload.apiToken;
+    const payloadText = await response.text();
+    const token = activationTokenFromResponse(payloadText);
     if (!response.ok || !token) {
       await clearTxLineSession();
-      return NextResponse.json({ error: payload.error ?? payload.message ?? "TxLINE activation was rejected" }, { status: 502 });
+      let detail = "";
+      try {
+        const payload = JSON.parse(payloadText) as { error?: unknown; message?: unknown };
+        detail = typeof payload.error === "string" ? payload.error : typeof payload.message === "string" ? payload.message : "";
+      } catch {
+        detail = payloadText.trim();
+      }
+      return NextResponse.json({ error: detail || `TxLINE activation was rejected (${response.status})` }, { status: 502 });
     }
     await storeApiToken(token);
     return NextResponse.json({ activated: true });

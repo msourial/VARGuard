@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   activationError,
   activationMessage,
+  activationTokenFromResponse,
   MIN_DEVNET_SOL,
   shortenPublicKey,
 } from "./activation";
@@ -9,6 +10,13 @@ import {
 describe("TxLINE devnet activation helpers", () => {
   it("constructs the documented transaction activation preimage", () => {
     expect(activationMessage("5Ntx", "guest-jwt")).toBe("5Ntx::guest-jwt");
+  });
+
+  it("accepts either documented TxLINE activation token response shape", () => {
+    expect(activationTokenFromResponse('{"token":"api-token"}')).toBe("api-token");
+    expect(activationTokenFromResponse('{"apiToken":"api-token"}')).toBe("api-token");
+    expect(activationTokenFromResponse("api-token")).toBe("api-token");
+    expect(activationTokenFromResponse("   ")).toBeNull();
   });
 
   it("uses a small non-zero Devnet SOL preflight threshold", () => {
