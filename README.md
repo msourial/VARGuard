@@ -1,23 +1,22 @@
 # VARGuard
 
-## Optional TxLINE Devnet data activation
+VARGuard is a deterministic, simulated risk-control demo for live football prediction markets. It shows a simple premise: when a match event makes old quotes unsafe, a naive market stays open and loses; VARGuard cancels exposed quotes, freezes the market, produces an audit trail, then reprices and reopens safely.
 
-The replay is fully deterministic and does not require a wallet, API key, or network connection. For an optional read-only live fixture feed, use **Activate TxLINE Free Data** beneath the TxLINE panel:
+**Simulated · no real money.** VARGuard does not execute trades, custody funds, accept deposits, or submit replay actions to Solana.
 
-1. Connect Phantom or Solflare on **Solana Devnet**.
-2. Keep at least `0.002` Devnet SOL for the free-tier transaction fee and token-account rent.
-3. Approve the free TxLINE service-level-1 subscription and its activation-message signature.
-4. Select **Connect TxLINE** in the fixture panel.
+## Judge story
 
-The resulting TxLINE API credential is stored in an HttpOnly browser session cookie and is never returned to client JavaScript. This feature supports no payments, trading, custody, transfers, or mainnet usage.
+Use **Fast judge demo** for the shortest walkthrough:
 
-Autonomous risk protection for simulated live football prediction markets.
+1. Start the 20-second replay.
+2. A comeback-goal event makes stale quotes dangerous.
+3. Naive Market accepts 5 bad trades and loses **600.00 test units**.
+4. VARGuard cancels quotes, freezes the market, prevents the same 5 trades, and avoids **600.00 test units** of loss.
+5. VAR review resolves; the market reprices and reopens with protected limits.
 
-## Demo
+The optional **Full incident replay** is a 130-tick synthetic Argentina–Egypt sequence with a cross, goals, a penalty save, a disallowed goal, and a comeback. It retains **22 prevented fills** and **2,800.00 test units avoided** at completion.
 
-VARGuard replays a match-changing football sequence. A naive market maker leaves stale quotes open and suffers an adverse-selection fill; VARGuard deterministically suspends the market, cancels quotes, reprices on fresh odds, and records an audit receipt.
-
-The app runs entirely with replay data: no wallet, API key, real money, deposits, or trading are involved.
+All match incidents, score changes, risk actions, logs, tactical visuals, telemetry receipts, and advisor text derive from the deterministic replay state. The local clip is a visual aid only and never controls product state.
 
 ## Run locally
 
@@ -26,17 +25,46 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 and select **Start replay**. Use the speed control to compress the demo.
+Open [http://localhost:3000](http://localhost:3000). No wallet, API key, network connection, clip asset, or AI provider is required for either replay.
+
+```bash
+npm run test
+npm run build
+```
+
+## Demo controls and proof
+
+- **Fast judge demo** — 20-tick / 600-unit protection story.
+- **Full incident replay** — 130-tick synthetic video-synced incident proof.
+- **VARGuard actions** — deterministic terminal-style policy telemetry, keyed to replay ticks.
+- **Advanced details** — quotes, policy receipts, and a `Demo telemetry receipt · Solana Devnet-style format` payload. It is display-only and is never submitted on-chain.
+- **AI Hedge Advisor** — receipt-backed operator recommendations only. It never executes trades or controls market state.
+
+## Optional TxLINE Devnet data
+
+The top-right **Devnet data · optional** control is a secondary hackathon integration. The replay remains fully functional without it.
+
+1. Open the control and connect Phantom or Solflare on **Solana Devnet**.
+2. Keep at least `0.002` Devnet SOL for the free-tier transaction fee and token-account rent.
+3. Approve the TxLINE service-level-1 subscription and activation-message signature.
+4. Use the optional read-only TxLINE fixture feed.
+
+The activated credential is stored in an HttpOnly browser session cookie and never exposed to client JavaScript. This path supports no payments, trading, custody, transfers, or mainnet usage.
+
+## Recording outline
+
+For a 45–60 second submission video:
+
+1. Start with the Fast judge demo and say: “Naive markets leave stale quotes open.”
+2. Start replay; show the goal, circuit-breaker state, and `600.00 test units` avoided.
+3. Show the newest VARGuard action and open Advanced details to show the demo telemetry receipt.
+4. End on `MARKET REOPENED` and the protected result.
 
 ## Architecture
 
-- `lib/varguard/replay.ts`: deterministic match-event fixture
-- `lib/varguard/engine.ts`: pure simulation and VARGuard policy engine
-- `lib/varguard/types.ts`: market, quote, action, receipt, and metric types
-- `app/page.tsx`: replay dashboard and audit-receipt interface
-
-## TxLINE live data
-
-The dashboard now proxies real authenticated TxLINE score and StablePrice odds data through server-side routes, keeping credentials out of the browser. Activate the TxLINE World Cup free tier, then set `TXLINE_API_TOKEN` in `.env.local` with its matching `TXLINE_API_ORIGIN`. VARGuard requests and renews the short-lived guest JWT automatically; `TXLINE_JWT` is optional. Select **Connect TxLINE** and enter a covered fixture ID from the TxLINE schedule.
-
-When credentials are missing, expired, or the data stream is unavailable, the app makes the fallback explicit and keeps the deterministic replay fully available. AI explanations and database persistence remain deferred.
+- `lib/varguard/engine.ts` — pure replay reducer and risk policy engine.
+- `lib/varguard/fixtures.ts` — Fast and Full synthetic scenario fixtures.
+- `lib/varguard/match-visual.ts` — state-driven tactical replay projection.
+- `lib/varguard/agent-log.ts` — deterministic terminal decision log.
+- `lib/varguard/mock-ledger.ts` — display-only telemetry receipt projection.
+- `app/page.tsx` — dashboard, controls, logs, and audit interface.

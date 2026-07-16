@@ -3,128 +3,60 @@
 import { useEffect, useState } from "react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
-import {
-  activationError,
-  activationMessage,
-  MIN_DEVNET_SOL,
-  shortenPublicKey,
-  type ActivationSession,
-  type TxLineActivationState,
-} from "@/lib/txline/activation";
+import type { WalletName } from "@solana/wallet-adapter-base";
+import { activationError, activationMessage, MIN_DEVNET_SOL, shortenPublicKey, type ActivationSession, type TxLineActivationState } from "@/lib/txline/activation";
 import { subscribeToTxLineDevnet } from "@/lib/txline/subscribe";
 
 const copy: Record<TxLineActivationState, string> = {
-  disconnected: "Connect Phantom or Solflare on Solana Devnet to activate the free data feed.",
-  connected: "Free tier: no subscription payment. Devnet SOL is used only for the transaction fee and token-account rent.",
-  "insufficient-sol": "This wallet needs at least 0.002 Devnet SOL for the free-tier transaction fee and account rent.",
-  subscribing: "Preparing the TxLINE free-tier devnet subscription…",
+  disconnected: "Optional only: connect Phantom or Solflare to activate read-only TxLINE Devnet data.",
+  connected: "Wallet connected. Devnet SOL is used only for the optional free-data transaction fee and account rent.",
+  "insufficient-sol": "Switch to Solana Devnet and add at least 0.002 test SOL before optional activation.",
+  subscribing: "Preparing the optional TxLINE Devnet subscription…",
   "awaiting-signature": "Subscription confirmed. Approve the TxLINE activation message in your wallet.",
-  activating: "Verifying the subscription and securing this browser session…",
-  activated: "Free data access is active in this browser. Connect the read-only fixture feed above.",
-  error: "Activation did not complete. Your replay demo remains available.",
+  activating: "Securing this browser’s TxLINE data session…",
+  activated: "TxLINE Devnet data is active in this browser.",
+  error: "Optional activation did not complete. The replay demo is unaffected.",
 };
+const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 
-function base64(bytes: Uint8Array) {
-  let value = "";
-  bytes.forEach(byte => { value += String.fromCharCode(byte); });
-  return btoa(value);
-}
-
-export function TxLineActivation() {
+export function TxLineActivation({ onActivationChange, initialActivated = false }: { onActivationChange?: (active: boolean) => void; initialActivated?: boolean }) {
   const { connection } = useConnection();
   const wallet = useWallet();
-  const { setVisible } = useWalletModal();
-  const [state, setState] = useState<TxLineActivationState>("disconnected");
-  const [message, setMessage] = useState(copy.disconnected);
-  const [balance, setBalance] = useState<number | null>(null);
-
+  const [pickerOpen, setPickerOpen] = useState(false), [pendingWallet, setPendingWallet] = useState<WalletName | null>(null);
+  const [state, setState] = useState<TxLineActivationState>(initialActivated ? "activated" : "disconnected"), [message, setMessage] = useState(initialActivated ? copy.activated : copy.disconnected), [balance, setBalance] = useState<number | null>(null);
   useEffect(() => {
     let active = true;
-    if (!wallet.publicKey) {
-      setState("disconnected");
-      setMessage(copy.disconnected);
-      setBalance(null);
-      return;
-    }
+    if (!wallet.publicKey) { setState("disconnected"); setMessage(copy.disconnected); setBalance(null); onActivationChange?.(false); return; }
     void connection.getBalance(wallet.publicKey, "confirmed").then(lamports => {
       if (!active) return;
-      const sol = lamports / LAMPORTS_PER_SOL;
-      setBalance(sol);
-      const next = sol < MIN_DEVNET_SOL ? "insufficient-sol" : "connected";
-      setState(next);
-      setMessage(copy[next]);
-    }).catch(() => {
-      if (!active) return;
-      setState("error");
-      setMessage("Could not check the Devnet balance. Confirm the wallet is on Devnet and try again.");
-    });
+      const sol = lamports / LAMPORTS_PER_SOL, next = sol < MIN_DEVNET_SOL ? "insufficient-sol" : "connected";
+      setBalance(sol); setState(current => current === "activated" ? current : next); setMessage(current => current === copy.activated ? current : copy[next]);
+    }).catch(() => { if (active) { setState("error"); setMessage("Could not check the Devnet balance. The replay demo is unaffected."); } });
     return () => { active = false; };
   }, [connection, wallet.publicKey?.toBase58()]);
-
+  useEffect(() => {
+    if (!pendingWallet || wallet.connected || wallet.connecting || wallet.wallet?.adapter.name !== pendingWallet) return;
+    void wallet.connect().catch(error => { setState("error"); setMessage(activationError(error)); }).finally(() => setPendingWallet(null));
+  }, [pendingWallet, wallet, wallet.connected, wallet.connecting, wallet.wallet?.adapter.name]);
+  const supportedWallets = wallet.wallets.filter(item => item.adapter.name === "Phantom" || item.adapter.name === "Solflare");
+  const chooseWallet = (name: WalletName) => { setPickerOpen(false); setPendingWallet(name); wallet.select(name); };
   const activate = async () => {
-    if (!wallet.publicKey || !wallet.signMessage) {
-      setVisible(true);
-      return;
-    }
-    if (balance !== null && balance < MIN_DEVNET_SOL) {
-      setState("insufficient-sol");
-      setMessage(copy["insufficient-sol"]);
-      return;
-    }
+    if (!wallet.publicKey || !wallet.signMessage) { setPickerOpen(true); return; }
+    if (balance === null || balance < MIN_DEVNET_SOL) { setState("insufficient-sol"); setMessage(copy["insufficient-sol"]); return; }
     try {
-      const sessionResponse = await fetch("/api/txline/activation-session", { method: "POST" });
-      const session = (await sessionResponse.json()) as ActivationSession & { error?: string };
+      const sessionResponse = await fetch("/api/txline/activation-session", { method: "POST" }), session = await sessionResponse.json() as ActivationSession & { error?: string };
       if (!sessionResponse.ok || !session.jwt) throw new Error(session.error ?? "Could not start the TxLINE activation session.");
-      setState("subscribing");
-      setMessage(copy.subscribing);
+      setState("subscribing"); setMessage(copy.subscribing);
       const txSig = await subscribeToTxLineDevnet(wallet, connection);
-      setState("awaiting-signature");
-      setMessage(copy["awaiting-signature"]);
+      setState("awaiting-signature"); setMessage(copy["awaiting-signature"]);
       const walletSignature = await wallet.signMessage(new TextEncoder().encode(activationMessage(txSig, session.jwt)));
-      setState("activating");
-      setMessage(copy.activating);
-      const activationResponse = await fetch("/api/txline/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ txSig, walletSignature: base64(walletSignature) }),
-      });
-      const result = (await activationResponse.json()) as { error?: string };
-      if (!activationResponse.ok) throw new Error(result.error ?? "TxLINE activation was rejected.");
-      setState("activated");
-      setMessage(copy.activated);
-    } catch (error) {
-      setState("error");
-      setMessage(activationError(error));
-    }
+      setState("activating"); setMessage(copy.activating);
+      const response = await fetch("/api/txline/activate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ txSig, walletSignature: base64(walletSignature) }) }), result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "TxLINE activation was rejected.");
+      setState("activated"); setMessage(copy.activated); onActivationChange?.(true);
+    } catch (error) { setState("error"); setMessage(activationError(error)); onActivationChange?.(false); }
   };
-
-  const disconnect = async () => {
-    await fetch("/api/txline/disconnect", { method: "POST" }).catch(() => undefined);
-    await wallet.disconnect().catch(() => undefined);
-    setState("disconnected");
-    setMessage(copy.disconnected);
-  };
-
-  const walletKey = wallet.publicKey?.toBase58();
-  const busy = state === "subscribing" || state === "awaiting-signature" || state === "activating";
-  return <section className="activation-card">
-    <div className="activation-heading">
-      <div><p className="eyebrow">OPTIONAL DEVNET ACCESS</p><h2>Activate TxLINE Free Data</h2></div>
-      <span className={`activation-status ${state}`}>{state.replaceAll("-", " ")}</span>
-    </div>
-    <p>{message}</p>
-    <div className="activation-detail">
-      <span>Network <b>Solana Devnet</b></span>
-      {walletKey && <span>Wallet <b>{shortenPublicKey(walletKey)}</b></span>}
-      {balance !== null && <span>Devnet SOL <b>{balance.toFixed(4)}</b></span>}
-    </div>
-    <div className="activation-actions">
-      {!walletKey ? <button onClick={() => setVisible(true)}>Connect wallet</button> : <>
-        {state !== "activated" && <button onClick={() => void activate()} disabled={busy}>{busy ? "Activating…" : "Activate free data"}</button>}
-        <button className="secondary" onClick={() => void disconnect()}>Disconnect wallet</button>
-      </>}
-    </div>
-    <small>Test SOL only. This feature does not support payments, trading, transfers, custody, or mainnet.</small>
-  </section>;
+  const disconnect = async () => { await fetch("/api/txline/disconnect", { method: "POST" }).catch(() => undefined); await wallet.disconnect().catch(() => undefined); setState("disconnected"); setMessage(copy.disconnected); onActivationChange?.(false); };
+  const key = wallet.publicKey?.toBase58(), busy = ["subscribing", "awaiting-signature", "activating"].includes(state);
+  return <section className="activation-panel"><p className="eyebrow">OPTIONAL DEVNET ACCESS</p><h2>Activate TxLINE data</h2><p>{message}</p><div className="access-details"><span>Network <b>Solana Devnet</b></span>{key && <span>Wallet <b>{shortenPublicKey(key)}</b></span>}{balance !== null && <span>Test SOL <b>{balance.toFixed(4)}</b></span>}</div>{!key ? <button onClick={() => setPickerOpen(true)}>Connect optional wallet</button> : <div className="access-actions">{state !== "activated" && <button onClick={() => void activate()} disabled={busy}>{busy ? "Activating…" : "Activate TxLINE data"}</button>}<button className="secondary" onClick={() => void disconnect()}>Disconnect</button></div>}{pickerOpen && <div className="drawer-backdrop" onClick={() => setPickerOpen(false)} role="presentation"><aside className="wallet-picker" role="dialog" aria-modal="true" aria-label="Choose a Solana wallet" onClick={event => event.stopPropagation()}><button className="close" onClick={() => setPickerOpen(false)}>×</button><p className="eyebrow">OPTIONAL DEVNET ACCESS</p><h2>Choose a wallet</h2><p>Phantom and Solflare are only needed for optional TxLINE data.</p>{supportedWallets.length ? supportedWallets.map(item => <button key={item.adapter.name} onClick={() => chooseWallet(item.adapter.name)}><b>{item.adapter.name}</b><span>{item.readyState === "Installed" ? "Detected" : "Available"}</span></button>) : <p className="picker-empty">Install or enable Phantom or Solflare, then reload this page.</p>}</aside></div>}</section>;
 }
