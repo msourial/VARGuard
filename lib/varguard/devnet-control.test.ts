@@ -7,7 +7,8 @@ describe("Devnet header control contract", () => {
   it("keeps Devnet access optional and inside a drawer", () => {
     expect(source()).toContain("Devnet data · optional");
     expect(source()).toContain("Solana Devnet · test SOL only");
-    expect(source()).toContain("<TxLineActivation initialActivated={activated} onActivationChange={handleActivation} />");
+    expect(source()).toContain("<TxLineActivation initialActivated={activated} onActivationChange={handleActivation}");
+    expect(source()).toContain("● LIVE");
   });
 
   it("does not connect a wallet on page load", () => {
