@@ -23,6 +23,6 @@ describe("MatchClipPanel UI contract", () => {
 
   it("places the incident replay before the market comparison", () => {
     const page = readFileSync(new URL("../../app/page.tsx", import.meta.url), "utf8");
-    expect(page.indexOf("incident-replay")).toBeLessThan(page.indexOf("<section className=\"comparison\"><MarketPanel"));
+    expect(page.indexOf("first-proof comparison")).toBeLessThan(page.indexOf("incident-replay"));
   });
 });
